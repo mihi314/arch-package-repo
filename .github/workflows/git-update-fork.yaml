@@ -1,0 +1,72 @@
+name: Update git fork
+
+on:
+  # Once a week
+  schedule:
+    - cron: "18 3 * * 6"
+
+  # Allows running this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  GIT_VERSION_FILE: git/latest-version.txt
+
+jobs:
+  update-git-fork:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Checkout arch-package-repo
+        uses: actions/checkout@v3.5.2
+        with:
+          path: arch-package-repo
+          token: "${{ secrets.REPO_PAT }}"
+
+      - name: Get latest tag and check for version change
+        id: check
+        working-directory: arch-package-repo
+        run: |
+          git ls-remote --tags --sort=version:refname https://github.com/git/git 'v*' \
+              | tail -1 | awk -F '[ \t/^]+' '{ print $4 }' > "$GIT_VERSION_FILE"
+          echo tag="$(cat "$GIT_VERSION_FILE" | tr -d \n)" >> "$GITHUB_OUTPUT"
+          echo modified=$([ -z "`git status --porcelain "$GIT_VERSION_FILE"`" ] && echo false || echo true) >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Checkout git fork
+        if: steps.check.outputs.modified == 'true'
+        uses: actions/checkout@v3
+        with:
+          repository: mihi314/git
+          ref: personal-fork
+          path: git
+          token: "${{ secrets.REPO_PAT }}"
+
+      - name: Rebase onto upstream
+        if: steps.check.outputs.modified == 'true'
+        working-directory: git
+        run: |
+          # https://stackoverflow.com/a/56113247/5768147
+          git fetch --shallow-since=2023-01-01 origin personal-fork
+
+          git remote add upstream https://github.com/git/git.git
+          git fetch --shallow-since=2023-01-01 upstream \
+              refs/tags/"${{ steps.check.outputs.tag }}":refs/tags/"${{ steps.check.outputs.tag }}"
+
+          git rebase "${{ steps.check.outputs.tag }}"
+          git push --force
+
+      - name: Commit version file
+        if: steps.check.outputs.modified == 'true'
+        uses: EndBug/add-and-commit@v9.1.2
+        with:
+          cwd: arch-package-repo
+          add: git/latest-version.txt
+          message: Update git version
+          push: true
+          default_author: github_actions
+          github_token: "${{ secrets.REPO_PAT }}"
