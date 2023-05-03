@@ -1,0 +1,37 @@
+name: Build git fork
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - git/**
+
+  workflow_dispatch:
+
+# TODO: can maybe generalize it to work for all packages I want to build
+
+jobs:
+  build-git:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    container:
+      image: martynas/archlinux:latest
+      # Need to increase the shared memory size (and set the exec flag) because the git PKGBUILD uses /dev/shm to speed
+      # up the tests
+      options: --user root --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g
+
+    steps:
+      - name: Checkout arch-package-repo
+        uses: actions/checkout@v3.5.2
+
+      - name: test
+        working-directory: git
+        run: |
+          chown -R build:build .
+          export MAKEFLAGS="-j$(nproc)"
+          sudo -u build -- makepkg --syncdeps --noconfirm
