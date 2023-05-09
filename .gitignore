@@ -2,3 +2,4 @@
 /git/src/
 /git/pkg/
 *.pkg.tar.*
+repo/

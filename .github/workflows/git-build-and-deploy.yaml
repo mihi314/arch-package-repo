@@ -1,0 +1,66 @@
+name: Build and deploy git fork
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - git/**
+
+  workflow_dispatch:
+
+# TODO: can maybe generalize this to work for all packages I want to build
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    container:
+      image: martynas/archlinux:latest
+      # Need to increase the shared memory size (and set the exec flag) because the git PKGBUILD uses /dev/shm to speed
+      # up the tests
+      options: --user root --tmpfs /dev/shm:rw,nosuid,nodev,exec,size=2g
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      # Used by makepkg and repo-add
+      GPGKEY: ${{ vars.GPGKEY }}
+      PACKAGER: ${{ vars.PACKAGER }}
+
+    steps:
+      - name: Checkout arch-package-repo
+        uses: actions/checkout@v3.5.2
+
+      - name: Install repo server SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: ${{ secrets.REPO_SERVER_KNOWN_HOSTS }}
+          config: ${{ vars.REPO_SERVER_SSH_CONFIG }}
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PRIVATE_KEY_PASSPHRASE }}
+          trust_level: 5
+
+      - name: Build
+        working-directory: git
+        run: |
+          chown -R build:build .
+          chown -R build:build "$HOME/.gnupg"
+
+          export MAKEFLAGS="-j$(nproc)"
+
+          sudo --preserve-env --user build -- \
+            makepkg --sign --key "$GPGKEY" --syncdeps --noconfirm  # --nocheck
+
+      - name: Deploy
+        working-directory: git
+        run: |
+          pacman -S --noconfirm openssh rsync
+          ../deploy-to-repo.sh
