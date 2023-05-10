@@ -25,7 +25,7 @@ optdepends=('tk: gitk and git gui'
             'org.freedesktop.secrets: keyring credential helper'
             'libsecret: libsecret credential helper')
 install=git.install
-source=('git+https://github.com/mihi314/git.git#branch=personal-fork'
+source=('git+https://github.com/mihi314/git.git#branch=fork'
         'git-daemon@.service'
         'git-daemon.socket'
         'git-sysusers.conf')

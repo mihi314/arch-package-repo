@@ -1,4 +1,4 @@
-name: Update git fork
+name: Check and update git fork
 
 on:
   # Once a week
@@ -42,7 +42,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: mihi314/git
-          ref: personal-fork
+          ref: fork
           path: git
           token: "${{ secrets.REPO_PAT }}"
 
@@ -51,7 +51,7 @@ jobs:
         working-directory: git
         run: |
           # https://stackoverflow.com/a/56113247/5768147
-          git fetch --shallow-since=2023-01-01 origin personal-fork
+          git fetch --shallow-since=2023-01-01 origin fork
 
           git remote add upstream https://github.com/git/git.git
           git fetch --shallow-since=2023-01-01 upstream \
