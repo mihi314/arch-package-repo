@@ -32,7 +32,7 @@ jobs:
         working-directory: arch-package-repo
         run: |
           git ls-remote --tags --sort=version:refname https://github.com/git/git 'v*' \
-              | tail -1 | awk -F '[ \t/^]+' '{ print $4 }' > "$GIT_VERSION_FILE"
+              | awk -F '[ \t/^]+' '{ print $4 }' | grep --invert-match rc | tail -1 > "$GIT_VERSION_FILE"
           echo tag="$(cat "$GIT_VERSION_FILE" | tr -d \n)" >> "$GITHUB_OUTPUT"
           echo modified=$([ -z "`git status --porcelain "$GIT_VERSION_FILE"`" ] && echo false || echo true) >> "$GITHUB_OUTPUT"
         shell: bash
