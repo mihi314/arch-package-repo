@@ -1,8 +1,8 @@
 # Maintainer: Michael Engelhard <engelhard.michael+git@gmail.com>
-# Based on https://github.com/archlinux/svntogit-packages/tree/packages/git/trunk
+# Based on https://gitlab.archlinux.org/archlinux/packaging/packages/git
 
 pkgname=git
-pkgver=2.40.1.r1.g46f279f98d
+pkgver=2.40.1.r681.g976c618156
 pkgrel=1
 pkgdesc='the fast distributed version control system'
 arch=('x86_64')
@@ -10,7 +10,7 @@ url='https://git-scm.com/'
 license=('GPL2')
 depends=('curl' 'expat' 'perl' 'perl-error' 'perl-mailtools'
          'openssl' 'pcre2' 'grep' 'shadow' 'zlib')
-makedepends=('python' 'libgnome-keyring' 'xmlto' 'asciidoc' 'git')
+makedepends=('python' 'xmlto' 'asciidoc' 'git')
 optdepends=('tk: gitk and git gui'
             'perl-libwww: git svn'
             'perl-term-readkey: git svn and interactive.singlekey setting'
@@ -62,7 +62,6 @@ build() {
     "${_make_options[@]}" \
     all man
 
-  make -C contrib/credential/gnome-keyring
   make -C contrib/credential/libsecret
   make -C contrib/subtree "${_make_paths[@]}" all man
   make -C contrib/mw-to-git "${_make_paths[@]}" all
@@ -104,11 +103,6 @@ package() {
   # fancy git prompt
   mkdir -p "$pkgdir"/usr/share/git/
   install -m 0644 ./contrib/completion/git-prompt.sh "$pkgdir"/usr/share/git/git-prompt.sh
-  # gnome credentials helper (deprecated, but we will keep it as long there is no extra cost)
-  # https://gitlab.gnome.org/GNOME/libgnome-keyring/commit/6a5adea4aec93
-  install -m 0755 contrib/credential/gnome-keyring/git-credential-gnome-keyring \
-      "$pkgdir"/usr/lib/git-core/git-credential-gnome-keyring
-  make -C contrib/credential/gnome-keyring clean
   # libsecret credentials helper
   install -m 0755 contrib/credential/libsecret/git-credential-libsecret \
       "$pkgdir"/usr/lib/git-core/git-credential-libsecret
