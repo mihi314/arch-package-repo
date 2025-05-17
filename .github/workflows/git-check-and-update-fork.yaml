@@ -59,6 +59,8 @@ jobs:
 
           git rebase "${{ steps.check.outputs.tag }}"
           git push --force
+          # Needed so that the makepkg call in git-build-and-deploy.yaml sets the correct version for the package
+          git push "${{ steps.check.outputs.tag }}"
 
       - name: Commit version file
         if: steps.check.outputs.modified == 'true'
