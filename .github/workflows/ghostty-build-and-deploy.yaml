@@ -1,0 +1,68 @@
+name: Build and deploy ghostty fork
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ghostty/**
+
+  workflow_dispatch:
+
+# TODO: can maybe generalize this to work for all packages I want to build
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    container:
+      image: martynas/archlinux:latest
+      options: --user root
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      # Used by makepkg and repo-add
+      GPGKEY: ${{ vars.GPGKEY }}
+      PACKAGER: ${{ vars.PACKAGER }}
+
+    steps:
+      - name: Checkout arch-package-repo
+        uses: actions/checkout@v3.5.2
+
+      - name: Install repo server SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: ${{ secrets.REPO_SERVER_KNOWN_HOSTS }}
+          config: ${{ vars.REPO_SERVER_SSH_CONFIG }}
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PRIVATE_KEY_PASSPHRASE }}
+          trust_level: 5
+
+      - name: Build
+        working-directory: ghostty
+        run: |
+          chown -R build:build .
+          chown -R build:build "$HOME/.gnupg"
+
+          mkdir -p "$HOME/.cache/zig"
+          chown -R build:build "$HOME/.cache/zig"
+
+
+          export MAKEFLAGS="-j$(nproc)"
+
+          sudo --preserve-env --user build -- \
+            makepkg --sign --key "$GPGKEY" --syncdeps --noconfirm  # --nocheck
+
+      - name: Deploy
+        working-directory: ghostty
+        run: |
+          pacman -S --noconfirm openssh rsync
+          ../deploy-to-repo.sh

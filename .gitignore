@@ -1,5 +1,8 @@
 /git/git/
 /git/src/
 /git/pkg/
+/ghostty/ghostty/
+/ghostty/src/
+/ghostty/pkg/
 *.pkg.tar.*
 repo/
