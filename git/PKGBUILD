@@ -1,31 +1,21 @@
 # Maintainer: Michael Engelhard <engelhard.michael+git@gmail.com>
 # Based on https://gitlab.archlinux.org/archlinux/packaging/packages/git
 
-pkgname=git
-pkgver=2.40.1.r681.g976c618156
+pkgbase=git
+pkgname=(git git-zsh-completion)
+pkgver=2.52.0.r1.gab9d1e63cc
 pkgrel=1
 pkgdesc='the fast distributed version control system'
 arch=('x86_64')
 url='https://git-scm.com/'
-license=('GPL2')
+license=('GPL-2.0-only')
 depends=('curl' 'expat' 'perl' 'perl-error' 'perl-mailtools'
-         'openssl' 'pcre2' 'grep' 'shadow' 'zlib')
-makedepends=('python' 'xmlto' 'asciidoc' 'git')
-optdepends=('tk: gitk and git gui'
-            'perl-libwww: git svn'
-            'perl-term-readkey: git svn and interactive.singlekey setting'
-            'perl-io-socket-ssl: git send-email TLS support'
-            'perl-authen-sasl: git send-email TLS support'
-            'perl-mediawiki-api: git mediawiki support'
-            'perl-datetime-format-iso8601: git mediawiki support'
-            'perl-lwp-protocol-https: git mediawiki https support'
-            'perl-cgi: gitweb (web interface) support'
-            'python: git svn & git p4'
-            'subversion: git svn'
-            'org.freedesktop.secrets: keyring credential helper'
-            'libsecret: libsecret credential helper')
+         'openssl' 'pcre2' 'grep' 'shadow' 'zlib-ng')
+makedepends=('python' 'xmlto' 'asciidoc' 'git' 'rust')
+checkdepends=('openssh')
 install=git.install
-source=('git+https://github.com/mihi314/git.git#branch=fork'
+validpgpkeys=('96E07AF25771955980DAD10020D04E5A713660A7') # Junio C Hamano
+source=("git+https://github.com/mihi314/git.git#branch=fork"
         'git-daemon@.service'
         'git-daemon.socket'
         'git-sysusers.conf')
@@ -39,37 +29,37 @@ pkgver() {
   git describe --long --tags | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
 }
 
-_make_paths=(
-  prefix='/usr'
-  gitexecdir='/usr/lib/git-core'
-  perllibdir="$(/usr/bin/perl -MConfig -wle 'print $Config{installvendorlib}')"
-)
+_make() {
+  local make_options=(
+    prefix='/usr'
+    gitexecdir='/usr/lib/git-core'
+    perllibdir="$(/usr/bin/perl -MConfig -wle 'print $Config{installvendorlib}')"
 
-_make_options=(
-  CFLAGS="$CFLAGS"
-  LDFLAGS="$LDFLAGS"
-  INSTALL_SYMLINKS=1
-  MAN_BOLD_LITERAL=1
-  NO_PERL_CPAN_FALLBACKS=1
-  USE_LIBPCRE2=1
-)
+    CFLAGS="$CFLAGS"
+    LDFLAGS="$LDFLAGS"
+    INSTALL_SYMLINKS=1
+    MAN_BOLD_LITERAL=1
+    NO_PERL_CPAN_FALLBACKS=1
+    USE_LIBPCRE2=1
+    ZLIB_NG=1
+    WITH_RUST=1
+  )
+
+  make "${make_options[@]}" "$@"
+}
 
 build() {
-  cd "$srcdir/$pkgname"
+  cd "$pkgbase"
 
-  make \
-    "${_make_paths[@]}" \
-    "${_make_options[@]}" \
-    all man
+  _make all man
 
-  make -C contrib/credential/libsecret
-  make -C contrib/subtree "${_make_paths[@]}" all man
-  make -C contrib/mw-to-git "${_make_paths[@]}" all
-  make -C contrib/diff-highlight "${_make_paths[@]}"
+  _make -C contrib/credential/libsecret
+  _make -C contrib/subtree all man
+  _make -C contrib/diff-highlight
 }
 
 check() {
-  cd "$srcdir/$pkgname"
+  cd "$pkgbase"
 
   local jobs
   jobs=$(expr "$MAKEFLAGS" : '.*\(-j[0-9]*\).*') || true
@@ -78,9 +68,7 @@ check() {
   # which is caused by 'git rebase' trying to use builduser's SHELL inside the
   # build chroot (i.e.: /usr/bin/nologin)
   SHELL=/bin/sh \
-  make \
-    "${_make_paths[@]}" \
-    "${_make_options[@]}" \
+  _make \
     NO_SVN_TESTS=y \
     DEFAULT_TEST_TARGET=prove \
     GIT_PROVE_OPTS="$jobs -Q" \
@@ -88,12 +76,27 @@ check() {
     test
 }
 
-package() {
-  cd "$srcdir/$pkgname"
-  
-  make \
-    "${_make_paths[@]}" \
-    "${_make_options[@]}" \
+package_git() {
+  optdepends=(
+    'git-zsh-completion: upstream zsh completion'
+    'tk: gitk and git gui'
+    'openssh: ssh transport and crypto'
+    'man: show help with `git command --help`'
+    'perl-libwww: git svn'
+    'perl-term-readkey: git svn and interactive.singlekey setting'
+    'perl-io-socket-ssl: git send-email TLS support'
+    'perl-authen-sasl: git send-email TLS support'
+    'perl-cgi: gitweb (web interface) support'
+    'python: git svn & git p4'
+    'subversion: git svn'
+    'org.freedesktop.secrets: keyring credential helper'
+    'libsecret: libsecret credential helper'
+    'less: the default pager for git'
+  )
+
+  cd "$pkgbase"
+
+  _make \
     DESTDIR="$pkgdir" \
     install install-man
 
@@ -106,11 +109,9 @@ package() {
   # libsecret credentials helper
   install -m 0755 contrib/credential/libsecret/git-credential-libsecret \
       "$pkgdir"/usr/lib/git-core/git-credential-libsecret
-  make -C contrib/credential/libsecret clean
+  _make -C contrib/credential/libsecret clean
   # subtree installation
-  make -C contrib/subtree "${_make_paths[@]}" DESTDIR="$pkgdir" install install-man
-  # mediawiki installation
-  make -C contrib/mw-to-git "${_make_paths[@]}" DESTDIR="$pkgdir" install
+  _make -C contrib/subtree DESTDIR="$pkgdir" install install-man
   # the rest of the contrib stuff
   find contrib/ -name '.gitignore' -delete
   cp -a ./contrib/* "$pkgdir"/usr/share/git/
@@ -121,4 +122,12 @@ package() {
 
   # sysusers file
   install -D -m 0644 "$srcdir"/git-sysusers.conf "$pkgdir"/usr/lib/sysusers.d/git.conf
+}
+
+package_git-zsh-completion() {
+  description='the fast distributed version control system - upstream zsh completion'
+  depends=('git' 'zsh')
+
+  install -d "$pkgdir"/usr/share/zsh/site-functions/
+  ln -s ../../git/completion/git-completion.zsh "$pkgdir"/usr/share/zsh/site-functions/_git
 }
