@@ -4,7 +4,7 @@
 _pkgbase=ghostty
 pkgname=($_pkgbase-xkb-fix $_pkgbase-shell-integration-xkb-fix $_pkgbase-terminfo-xkb-fix)
 pkgrel=1
-pkgver=1.2.0.r1727.gb61eefa
+pkgver=1.2.0.r2456.g9b1b155
 pkgdesc="Fast, native, feature-rich terminal emulator pushing modern features"
 arch=(x86_64 aarch64 i686)
 url="https://github.com/rumpelsepp/$_pkgbase"
@@ -87,4 +87,6 @@ package_ghostty-terminfo-xkb-fix() {
 	cd "$_pkgbase"
 	mkdir -p "$pkgdir/usr/share/terminfo"
 	cp -r build/usr/share/terminfo/* "$pkgdir/usr/share/terminfo/"
+	# remove ghostty terminfo, because the file is already shipped by ncurses
+	rm -f "$pkgdir/usr/share/terminfo/g/ghostty"
 }
